@@ -34,6 +34,7 @@ This is the core logic. The agent must implement a controller that follows this 
 
 1. **Initial Render**: Compile `.typ` via Jinja2 with default `LayoutParams`.
 2. **Page Check**: Use `typst-py` or `pypdf` to inspect the page count.
+* use a "Binary Search" style approach on font sizes ($10pt \rightarrow 9pt \rightarrow 9.5pt$) to find the optimal fit faster.
 3. **Step A (Spacing)**: Reduce `margin` and `row-gutter` by  (up to 3 iterations).
 4. **Step B (Typography)**: Reduce `font_size` by  increments (floor: `min_font_size`).
 5. **Step C (Pruning)**: Remove the `ExperienceItem` with the lowest `match_score` (provided by AI) or `priority`.
@@ -49,7 +50,7 @@ The agent should implement a `SelectionAgent` class:
 * **Logic**:
 1. Rank experiences by relevance to the JD ( to ).
 2. If `allow_rephrasing` is True, rewrite bullet points to highlight JD keywords while maintaining grounding (no hallucinating new roles).
-
+* **Notes**: decouple Content Optimization (LLM) from Layout Optimization (Heuristic), If a user tweaks a margin, you shouldn't re-run the LLM Selection Engine.
 
 * **Output**: A filtered and ranked list of IDs and modified bullets.
 
@@ -60,14 +61,18 @@ The agent should implement a `SelectionAgent` class:
 ### Phase 1: CLI & Templating (The Foundation)
 
 * Setup Jinja2 to render `.typ` files.
-* Implement `typst-py` wrapper to compile PDF/PNG.
-* Create a CLI command: `generate --master master.yaml --config config.yaml`.
+* Implement `typst-py` wrapper to handle `typst compile` subprocess calls and generating the PDF/PNG.
+* Create a list of verbs of CLI commands like: `generate --master master.yaml --config config.yaml`.
+* A CLI script where you input a master.json and it spits out a resume.pdf with fixed formatting.
+* use Typst's block(breakable: false) to ensure logical units stay together.
+* add a diff-check on major entities like dates, titles, entities, tech stack, etc.
 
 ### Phase 2: The Constraint Engine (The Brain)
 
 * Implement the `HeuristicLoop` controller.
 * Add logic to parse PDF metadata to get page counts.
 * Ensure layout parameters in the `.typ` file are variables passed from Python.
+* add a Minimum Readability threshold constraint to maintain readability.
 
 ### Phase 3: AI Integration (The Intelligence)
 
@@ -76,8 +81,10 @@ The agent should implement a `SelectionAgent` class:
 
 ### Phase 4: API & Persistence (The Scale)
 
-* Create FastAPI endpoints for `/generate` and `/preview`.
+* Create FastAPI endpoints for `/generate`, `/preview`, `/tailor` (Long-running) and `/status/{id}`.
 * Implement a "History" layer: save every JD, Config, and Resulting PDF to a local `outputs/` folder or cloud storage.
+* Implement a File-Based Cache: If the JD and Master List haven't changed, skip Phase 3 and go straight to Phase 2.
+* Add a "Debug PDF" mode that highlights AI-rewritten text in a different color.
 
 ---
 

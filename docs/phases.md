@@ -83,6 +83,8 @@ To implement the **Agentic CV Tailoring Engine (ACTE)**, we will follow a modula
 2.  **Persistence & Caching:**
     *   **History Layer:** Save every JD, Config, and Resulting PDF to an `outputs/` folder.
     *   **File-Based Cache:** Hash the JD and Master List; if they haven't changed, skip Phase 3 and go straight to Phase 2 (Layout Optimization).
+    * **hard interface boundary caching:** Its not adding caching to a monolith, its caching at the interface between two already-separate systems.
+
 
 3.  **Debug Features:**
     *   Add a **Debug PDF** mode that highlights AI-rewritten text in a different color.

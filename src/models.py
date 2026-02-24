@@ -9,7 +9,7 @@ class ExperienceItem(BaseModel):
     date: str
     bullets: list[str]
     keywords: list[str]
-    priority: int
+    priority: float
 
 class MasterExperience(BaseModel):
     experiences: list[ExperienceItem]

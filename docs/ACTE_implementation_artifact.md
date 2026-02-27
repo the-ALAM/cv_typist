@@ -1,6 +1,6 @@
 # ACTE: Agentic CV Tailoring Engine — Coding Agent Implementation Artifact
 
-> **Purpose:** This document is the single source of truth for a coding agent (Claude Code CLI) implementing the ACTE system. Every architectural decision has been pre-resolved. Do not deviate from the patterns, interfaces, or constraints described here without explicit instruction. Each phase ends with a clear, runnable test that must pass before the next phase begins.
+> **Purpose:** This document is the single source of truth for a coding agent implementing the ACTE system. Every architectural decision has been pre-resolved. Do not deviate from the patterns, interfaces, or constraints described here without explicit instruction. Each phase ends with a clear, runnable test that must pass before the next phase begins.
 
 ---
 
@@ -9,7 +9,7 @@
 Create the following structure before writing any code:
 
 ```
-acte/
+cv_typist/
 ├── src/
 │   └── acte/
 │       ├── __init__.py
@@ -61,6 +61,51 @@ dependencies = [
 [project.scripts]
 acte = "acte.cli:app"
 ```
+
+### 0.1 Package Initialisation Files
+
+Every directory containing Python source is a proper package. `__init__.py` files serve two purposes: establishing the **public interface** of each module and enforcing the **import topology** that prevents circular dependencies.
+
+**Dependency order — strictly acyclic.**
+
+**`src/acte/__init__.py`** — re-exports Phase 1 & 2 symbols only. Phase 3/4 components are intentionally **not** re-exported here to avoid pulling LiteLLM/FastAPI into contexts that only need the core engine:
+
+```python
+from .models import (
+    ExperienceItem,
+    MasterExperience,
+    LayoutParams,
+    TailoredConfig,
+    ResolvedContent,
+    GenerationArtifact,
+)
+from .renderer import Renderer, TypstCompilationError, TypstMonotoneViolation
+from .loop import HeuristicLoop
+from .actions import SpacingAction, FontAction, PruneAction, NoOpAction, Action
+from .state import GenerationState
+
+__all__ = [
+    "ExperienceItem", "MasterExperience", "LayoutParams", "TailoredConfig",
+    "ResolvedContent", "GenerationArtifact",
+    "Renderer", "TypstCompilationError", "TypstMonotoneViolation",
+    "HeuristicLoop",
+    "SpacingAction", "FontAction", "PruneAction", "NoOpAction", "Action",
+    "GenerationState",
+]
+```
+
+**Import rules enforced by the topology above:**
+- `models.py` — no intra-package imports (leaf node).
+- `actions.py` / `state.py` — may import from `models` only.
+- `renderer.py` — may import from `models`; no loop or AI imports.
+- `loop.py` — may import from `models`, `actions`, `state`, `renderer`. **Must not import `selection`, `grounding`, `cache`, or any LLM library.**
+- `selection.py` — may import from `models`, `loop` (for type hints only via `TYPE_CHECKING`). Imports `grounding`.
+- `grounding.py` — may import from `models` only.
+- `cache.py` — may import from `models`, `selection` (for `ResolvedContent` type).
+- `api.py` — may import from all of the above.
+- `cli.py` — may import from all of the above.
+
+**Rule:** Never use `from .module import *`. All imports must be explicit. Circular imports that violate this topology are a hard failure.
 
 ---
 
@@ -125,6 +170,9 @@ class ResolvedContent(BaseModel):
     experiences: list[ExperienceItem]   # Ordered: highest relevance first
     # bullets on each item may be rephrased versions (Phase 3) or originals (Phase 1/2)
     # The loop prunes from the END of this list (lowest relevance last)
+    job_description: Optional[str] = None
+    # Populated by SelectionAgent for audit/history. NEVER read by HeuristicLoop.
+    # Stored verbatim in output/history/{run}/job_description.txt.
 
 
 class GenerationArtifact(BaseModel):
@@ -151,7 +199,9 @@ This is the canonical template. The Typst escape filter (Section 1.3) MUST be ap
 
 #set text(
   size: {{ layout.font_size_pt }}pt,
-  font: "Linux Libertine",
+  font: ("Times New Roman", "Liberation Serif", "Georgia"),
+  // Fallback order: Liberation Serif (Linux), Times New Roman (Windows/macOS), Georgia (all).
+  // All three are pre-installed on most devices. Typst will use the first match found.
 )
 
 #set par(leading: {{ layout.item_spacing_pt }}pt)
@@ -479,7 +529,19 @@ class SelectionAgent:
     The HeuristicLoop must never be modified to accommodate this class.
     """
 
-    def __init__(self, model: str = "gpt-4o-mini", allow_rephrasing: bool = False):
+    def __init__(
+        self,
+        model: str = "gpt-4o-mini",
+        allow_rephrasing: bool = False,
+        timeout: float = 30.0,
+        max_retries: int = 2,
+    ):
+        """
+        timeout:     seconds before an individual LLM call is abandoned and retried.
+        max_retries: retry attempts on transient errors (e.g. HTTP 429 rate-limit).
+                     Retries use exponential back-off: wait = 2 ** attempt seconds.
+                     After all retries are exhausted, assign score 0.0 and emit a warning.
+        """
         ...
 
     def resolve(self, master: MasterExperience, job_description: str) -> ResolvedContent:
@@ -523,8 +585,17 @@ This is a hard requirement. No rewrite that introduces semantic drift may pass t
 class GroundingGuard:
     """
     Validates that a rephrased bullet does not introduce or remove protected entities.
-    Uses an LLM call to extract named entities from both original and rephrased text,
-    then performs set-difference checks.
+
+    Entity extraction uses a two-tier strategy to minimise LLM call volume:
+    - Fast-path: spaCy NER (en_core_web_sm) handles COMPANY, DATE, and METRIC reliably
+      and requires zero LLM calls.
+    - LLM fallback: invoked only when TECHNOLOGY or ROLE entities may be present
+      (spaCy does not reliably detect these categories).
+
+    Cost profile for a resolve() call over N items with rephrasing enabled:
+    - Naive (LLM-only):  1 scoring call + N rephrasing calls + 2N grounding calls = 3N+1
+    - With spaCy path:   1 scoring call + N rephrasing calls + 0–2 LLM calls per bullet
+      For plain-language bullets with no technology terms: grounding LLM calls ≈ 0.
     """
 
     # Entity categories that are protected (must be preserved exactly):
@@ -553,10 +624,30 @@ class GroundingGuard:
     def _extract_entities(self, text: str) -> set[tuple[str, str]]:
         """
         Returns set of (entity_text, category) tuples.
-        Implementation: LLM call with structured output.
-        Prompt: "Extract all companies, dates, job titles, technologies, and numeric metrics
-                 from the following text. Return ONLY valid JSON: 
-                 [{'text': '...', 'category': 'COMPANY|DATE|ROLE|TECHNOLOGY|METRIC'}]"
+
+        Two-tier extraction strategy:
+
+        1. spaCy fast-path (always runs first):
+           - Load en_core_web_sm model (cached as a module-level singleton on first use).
+           - Map spaCy labels → PROTECTED_CATEGORIES:
+               ORG              → COMPANY
+               DATE / TIME      → DATE
+               PERCENT / CARDINAL / QUANTITY → METRIC (only when token text contains
+                                                        a digit or '%')
+           - ROLE and TECHNOLOGY are not reliably produced by en_core_web_sm and are
+             excluded from the spaCy result set.
+
+        2. LLM fallback (conditional):
+           - Triggered when the text contains any proper-noun token not already captured
+             by spaCy (heuristic for potential TECHNOLOGY or ROLE terms), OR when spaCy
+             returns an empty result for a non-trivial text (>3 tokens).
+           - Uses the canonical Entity Extraction Prompt from the Appendix.
+           - On JSON parse failure: retry once; if still failing, return spaCy-only
+             result and emit a warning. Never silently pass a bullet that could not
+             be validated.
+
+        3. Merge: union(spaCy_entities, llm_entities). LLM result takes precedence
+           on any text-level conflict.
         """
         ...
 ```
@@ -607,9 +698,24 @@ artifact = heuristic_loop.run(resolved, config, tmp_dir)      # Zero LLM calls h
 # Behavior: Async. Enqueues job, returns { job_id: str, status: "queued" } immediately.
 # Use FastAPI BackgroundTasks. Document the limitation: job state is in-process memory only.
 # (A production upgrade to ARQ/Celery is noted as future work, not implemented here.)
+# Error handling: wrap the ENTIRE background task body in try/except Exception.
+#   On exception → set job state to "failed", store str(exc) in the job record's
+#   error field. This guarantees GET /status/{job_id} never returns "queued"
+#   indefinitely after an unhandled crash inside the background task.
 
 # GET /status/{job_id}
-# Returns: { job_id, status: "queued|running|complete|failed", artifact_path: str | null, warnings: list[str] }
+# Returns: { job_id, status: "queued|running|complete|failed",
+#            artifact_path: str | null, warnings: list[str], error: str | null }
+# error is non-null only when status="failed". artifact_path is null when failed.
+
+# GET /history
+# Query params: limit (int, default 20, max 100), offset (int, default 0)
+# Behavior: Scans output/history/ for completed run directories sorted by
+#   timestamp descending (most recent first). Returns a paginated summary list.
+# Response: { items: [{ job_id, timestamp, status, artifact_path, warnings }], total: int }
+# Reads metadata from output/history/{timestamp}_{job_id}/action_log.json and
+#   warnings.json. Returns { items: [], total: 0 } (not 404) when the directory
+#   is empty or does not yet exist.
 
 # GET /preview
 # Query params: master_path, config_path (paths to files in output/)
@@ -627,7 +733,17 @@ class ContentCache:
     Cache hit → skip Phase 3 entirely, go directly to Phase 2.
     Cache stored as JSON files in output/cache/.
 
-    Cache key = sha256( canonical_json(master) + canonical_json(job_description) )
+    Cache key = sha256(
+        canonical_json(master)
+        + canonical_json(job_description)
+        + json.dumps(allow_rephrasing)    # MUST be included — see note below
+    )
+
+    IMPORTANT: allow_rephrasing MUST be part of the key. A cache entry produced
+    with allow_rephrasing=False contains original (unrephrased) bullets. Serving
+    that entry for an allow_rephrasing=True request would silently skip rephrasing
+    and return stale content. The caller (api.py) must pass config.allow_rephrasing
+    into every get() / set() call.
 
     canonical_json rules:
     - Sort all dict keys alphabetically (recursive)
@@ -635,13 +751,13 @@ class ContentCache:
     - Serialize with separators=(',', ':') (no extra whitespace)
     """
 
-    def get(self, master: MasterExperience, jd: str) -> ResolvedContent | None:
+    def get(self, master: MasterExperience, jd: str, allow_rephrasing: bool) -> ResolvedContent | None:
         ...
 
-    def set(self, master: MasterExperience, jd: str, resolved: ResolvedContent) -> None:
+    def set(self, master: MasterExperience, jd: str, allow_rephrasing: bool, resolved: ResolvedContent) -> None:
         ...
 
-    def _cache_key(self, master: MasterExperience, jd: str) -> str:
+    def _cache_key(self, master: MasterExperience, jd: str, allow_rephrasing: bool) -> str:
         ...
 ```
 
@@ -666,6 +782,9 @@ Every call to `POST /generate` or `POST /tailor` (on completion) must write to `
 6. `test_cache_key_is_canonical` — Verify two `MasterExperience` objects with keys in different order produce the same cache key.
 7. `test_history_files_written` — After `/generate`, verify all 6 history files exist in `output/history/`.
 8. `test_cache_miss_on_different_jd` — Submit with JD "A", then JD "B"; verify LLM is called twice.
+9. `test_status_transitions_to_failed_on_error` — Mock the pipeline to raise `RuntimeError` inside the `/tailor` background task; poll `/status/{job_id}` and assert `status="failed"` and `error` field is a non-empty string.
+10. `test_history_endpoint_returns_list` — After two `/generate` calls, GET `/history`; verify response body contains `total=2` and items are sorted by timestamp descending.
+11. `test_cache_key_includes_allow_rephrasing` — Call `_cache_key()` with `allow_rephrasing=False` and `allow_rephrasing=True` for an identical master + JD; assert the two keys differ.
 
 ---
 

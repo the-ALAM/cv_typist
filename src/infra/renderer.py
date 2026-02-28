@@ -91,9 +91,28 @@ class Renderer:
                 f"Template {self._template_name!r} not found in {self._templates_dir}"
             ) from exc
         try:
+            personal = (
+                content.personal.model_dump()
+                if content.personal is not None
+                else None
+            )
+            projects = (
+                [proj.model_dump() for proj in content.projects]
+                if content.projects is not None
+                else None
+            )
+            education = (
+                [edu.model_dump() for edu in content.education]
+                if content.education is not None
+                else None
+            )
             return template.render(
                 layout=layout,
                 experiences=content.experiences,
+                personal=personal,
+                skills=content.skills,
+                projects=projects,
+                education=education,
             )
         except Exception as exc:
             raise RenderError(f"Jinja2 rendering failed: {exc}") from exc

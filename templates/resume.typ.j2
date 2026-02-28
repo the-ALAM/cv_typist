@@ -1,43 +1,89 @@
-// ---- ACTE Generated Resume ----
+// ---- ACTE Generated ATS-Friendly Resume ----
 // All dimension variables are injected by Python. Do not hardcode values.
 
-#set page(
-  margin: {{ layout.margin_pt }}pt,
-  width: 210mm,
-  height: 297mm,
+#import "@preview/ats-friendly-resume:0.1.1": *
+
+#show: resume.with(
+  author: "{{ personal.name | te }}",
+  author-position: center,
+{% if personal.get("location") %}
+  location: "{{ personal.location | te }}",
+{% endif %}
+{% if personal.get("email") %}
+  email: "{{ personal.email | te }}",
+{% endif %}
+{% if personal.get("phone") %}
+  phone: "{{ personal.phone | te }}",
+{% endif %}
+{% if personal.get("linkedin") %}
+  linkedin: "{{ personal.linkedin | te }}",
+{% endif %}
+{% if personal.get("github") %}
+  github: "{{ personal.github | te }}",
+{% endif %}
+{% if personal.get("portfolio") %}
+  portfolio: "{{ personal.portfolio | te }}",
+{% endif %}
+  personal-info-position: center,
+  color-enabled: false,
+  font: "New Computer Modern",
+  paper: "a4",
+  author-font-size: {{ (layout.font_size_pt * 2) | round(1) }}pt,
+  font-size: {{ layout.font_size_pt }}pt,
+  lang: "en",
 )
 
-#set text(
-  size: {{ layout.font_size_pt }}pt,
-  font: ("Times New Roman", "Liberation Serif", "Georgia"),
-)
+{% if skills is defined and skills %}
+== Technical Skills
+{% for category, items in skills.items() %}
+- *{{ category | te }}*: {{ items | join(", ") }}
+{% endfor %}
 
-#set par(leading: {{ layout.item_spacing_pt }}pt)
+{% endif %}
+{% if experiences %}
+== Experience
 
-// ---- Helper function ----
-#let experience_block(role, company, date, bullets) = {
-  block(breakable: false, below: {{ layout.gutter_pt }}pt)[
-    #grid(
-      columns: (1fr, auto),
-      [*#role* #h(4pt) #text(style: "italic")[#company]],
-      [#text(style: "italic")[#date]]
-    )
-    #for b in bullets [
-      - #b
-    ]
-  ]
-}
-
-// ---- Content ----
 {% for exp in experiences %}
-#experience_block(
-  "{{ exp.role | te }}",
-  "{{ exp.company | te }}",
-  "{{ exp.date | te }}",
-  (
-    {% for bullet in exp.bullets %}
-    "{{ bullet | te }}",
-    {% endfor %}
-  )
+#work(
+  company: "{{ exp.company | te }}",
+  role: "{{ exp.role | te }}",
+  dates: "{{ exp.date | te }}",
+)
+{% for bullet in exp.bullets %}
+- {{ bullet | te }}
+{% endfor %}
+
+{% endfor %}
+{% endif %}
+{% if projects is defined and projects %}
+== Projects
+
+{% for proj in projects %}
+#project(
+  name: "{{ proj.name | te }}",
+  dates: "{{ proj.date | te }}",
+{% if proj.get("tech_used") %}
+  tech-used: "{{ proj.tech_used | te }}",
+{% endif %}
+{% if proj.get("url") %}
+  url: "{{ proj.url | te }}",
+{% endif %}
+)
+{% for bullet in proj.bullets %}
+- {{ bullet | te }}
+{% endfor %}
+
+{% endfor %}
+{% endif %}
+{% if education is defined and education %}
+== Education
+
+{% for edu in education %}
+#edu(
+  institution: "{{ edu.institution | te }}",
+  location: "{{ edu.location | te }}",
+  degree: "{{ edu.degree | te }}",
+  dates: "{{ edu.date | te }}",
 )
 {% endfor %}
+{% endif %}

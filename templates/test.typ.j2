@@ -1,0 +1,43 @@
+// ---- ACTE Generated Resume ----
+// All dimension variables are injected by Python. Do not hardcode values.
+
+#set page(
+  margin: {{ layout.margin_pt }}pt,
+  width: 210mm,
+  height: 297mm,
+)
+
+#set text(
+  size: {{ layout.font_size_pt }}pt,
+  font: ("Times New Roman", "Liberation Serif", "Georgia"),
+)
+
+#set par(leading: {{ layout.item_spacing_pt }}pt)
+
+// ---- Helper function ----
+#let experience_block(role, company, date, bullets) = {
+  block(breakable: false, below: {{ layout.gutter_pt }}pt)[
+    #grid(
+      columns: (1fr, auto),
+      [*#role* #h(4pt) #text(style: "italic")[#company]],
+      [#text(style: "italic")[#date]]
+    )
+    #for b in bullets [
+      - #b
+    ]
+  ]
+}
+
+// ---- Content ----
+{% for exp in experiences %}
+#experience_block(
+  "{{ exp.role | te }}",
+  "{{ exp.company | te }}",
+  "{{ exp.date | te }}",
+  (
+    {% for bullet in exp.bullets %}
+    "{{ bullet | te }}",
+    {% endfor %}
+  )
+)
+{% endfor %}

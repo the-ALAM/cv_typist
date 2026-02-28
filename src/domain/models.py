@@ -5,7 +5,9 @@ Dependency rule: stdlib + pydantic only. No imports from acte.*.
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from typing import Optional
+
+from pydantic import BaseModel, Field, model_validator
 
 
 class ExperienceItem(BaseModel):
@@ -14,26 +16,35 @@ class ExperienceItem(BaseModel):
     company: str
     date: str
     bullets: list[str]
-    keywords: list[str]
-    priority: float  # 0.0 – 1.0; higher = keep under pressure
+    keywords: list[str] = Field(default_factory=list)
+    priority: float = Field(ge=0.0, le=1.0)
+    match_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
 class MasterExperience(BaseModel):
     experiences: list[ExperienceItem]
 
+    @model_validator(mode="after")
+    def unique_ids(self) -> MasterExperience:
+        ids = [e.id for e in self.experiences]
+        if len(ids) != len(set(ids)):
+            raise ValueError("ExperienceItem IDs must be unique")
+        return self
+
 
 class LayoutParams(BaseModel):
-    margin: float = 72.0       # points
-    gutter: float = 6.0        # points
-    font_size: float = 11.0    # points
-    item_spacing: float = 4.0  # points
+    margin_pt: float = Field(default=56.0, ge=20.0, le=80.0)
+    gutter_pt: float = Field(default=6.0, ge=2.0, le=16.0)
+    font_size_pt: float = Field(default=10.5, ge=7.0, le=14.0)
+    item_spacing_pt: float = Field(default=4.0, ge=1.0, le=10.0)
 
 
 class TailoredConfig(BaseModel):
-    max_pages: int = 1
-    min_font_size: float = 9.0
+    max_pages: int = Field(default=1, ge=1, le=4)
+    min_font_size_pt: float = Field(default=8.5, ge=7.0, le=10.0)
     allow_rephrasing: bool = False
-    output_format: str = "pdf"  # "pdf" | "png"
+    alpha: float = Field(default=0.5, ge=0.0, le=1.0)
+    output_format: str = "pdf"
 
 
 class ResolvedContent(BaseModel):
@@ -44,5 +55,13 @@ class ResolvedContent(BaseModel):
     """
 
     experiences: list[ExperienceItem]
-    job_description: str = ""
+    job_description: Optional[str] = None
     metadata: dict[str, str] = Field(default_factory=dict)
+
+
+class GenerationArtifact(BaseModel):
+    pdf_bytes: bytes
+    final_page_count: int
+    final_layout: LayoutParams
+    action_log: list[dict] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)

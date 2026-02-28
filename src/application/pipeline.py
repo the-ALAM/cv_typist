@@ -15,7 +15,7 @@ import hashlib
 import logging
 from pathlib import Path
 
-from ..domain.models import MasterExperience, ResolvedContent, TailoredConfig
+from ..domain.models import MasterExperience, ResolvedContent, TailoredConfig, GenerationArtifact
 from .loop import HeuristicLoop
 from .ports import CachePort, LLMClientPort, RendererPort
 

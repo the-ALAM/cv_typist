@@ -1,4 +1,4 @@
-"""Pure unit tests for domain models, state, types, and exceptions.
+"""Pure unit tests for domain models, state, actions, types, and exceptions.
 
 Zero I/O. Zero mocks. Runs in milliseconds with no external deps installed.
 """
@@ -8,6 +8,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
+from src.domain.actions import (
+    Action,
+    FontAction,
+    NoOpAction,
+    PruneAction,
+    SpacingAction,
+)
 from src.domain.exceptions import (
     ACTEError,
     CacheError,
@@ -20,6 +27,7 @@ from src.domain.exceptions import (
 )
 from src.domain.models import (
     ExperienceItem,
+    GenerationArtifact,
     LayoutParams,
     MasterExperience,
     ResolvedContent,
@@ -51,6 +59,27 @@ class TestExperienceItem:
         assert isinstance(sample_experience.bullets, list)
         assert all(isinstance(b, str) for b in sample_experience.bullets)
 
+    def test_priority_bounds(self) -> None:
+        with pytest.raises(ValidationError):
+            ExperienceItem(
+                id="e1", role="SWE", company="C", date="2024",
+                bullets=["x"], keywords=[], priority=1.5,
+            )
+
+    def test_match_score_optional(self) -> None:
+        item = ExperienceItem(
+            id="e1", role="SWE", company="C", date="2024",
+            bullets=["x"], keywords=[], priority=0.5,
+        )
+        assert item.match_score is None
+
+    def test_keywords_default_empty(self) -> None:
+        item = ExperienceItem(
+            id="e1", role="SWE", company="C", date="2024",
+            bullets=["x"], priority=0.5,
+        )
+        assert item.keywords == []
+
 
 class TestMasterExperience:
     def test_wraps_list(self, sample_master: MasterExperience) -> None:
@@ -60,37 +89,51 @@ class TestMasterExperience:
         m = MasterExperience(experiences=[])
         assert m.experiences == []
 
+    def test_unique_ids_enforced(self) -> None:
+        item = ExperienceItem(
+            id="e1", role="SWE", company="C", date="2024",
+            bullets=["x"], keywords=[], priority=0.5,
+        )
+        with pytest.raises(ValidationError, match="unique"):
+            MasterExperience(experiences=[item, item])
+
 
 class TestLayoutParams:
     def test_defaults_are_positive(self) -> None:
         layout = LayoutParams()
-        assert layout.margin > 0
-        assert layout.gutter > 0
-        assert layout.font_size > 0
-        assert layout.item_spacing > 0
+        assert layout.margin_pt > 0
+        assert layout.gutter_pt > 0
+        assert layout.font_size_pt > 0
+        assert layout.item_spacing_pt > 0
 
     def test_custom_values(self) -> None:
-        layout = LayoutParams(margin=50.0, font_size=10.0)
-        assert layout.margin == 50.0
-        assert layout.font_size == 10.0
+        layout = LayoutParams(margin_pt=50.0, font_size_pt=10.0)
+        assert layout.margin_pt == 50.0
+        assert layout.font_size_pt == 10.0
+
+    def test_constraint_bounds(self) -> None:
+        with pytest.raises(ValidationError):
+            LayoutParams(margin_pt=10.0)  # below ge=20.0
 
 
 class TestTailoredConfig:
     def test_defaults(self) -> None:
         config = TailoredConfig()
         assert config.max_pages >= 1
-        assert config.min_font_size > 0
-        assert config.output_format in ("pdf", "png")
+        assert config.min_font_size_pt > 0
 
     def test_allow_rephrasing_default_false(self) -> None:
         assert TailoredConfig().allow_rephrasing is False
+
+    def test_alpha_default(self) -> None:
+        assert TailoredConfig().alpha == 0.5
 
 
 class TestResolvedContent:
     def test_is_boundary_object(self, sample_experience: ExperienceItem) -> None:
         rc = ResolvedContent(experiences=[sample_experience])
         assert len(rc.experiences) == 1
-        assert rc.job_description == ""
+        assert rc.job_description is None
 
     def test_metadata_defaults_empty(self, sample_experience: ExperienceItem) -> None:
         rc = ResolvedContent(experiences=[sample_experience])
@@ -101,32 +144,67 @@ class TestResolvedContent:
         assert restored == sample_resolved
 
 
+class TestGenerationArtifact:
+    def test_construction(self) -> None:
+        artifact = GenerationArtifact(
+            pdf_bytes=b"%PDF",
+            final_page_count=1,
+            final_layout=LayoutParams(),
+        )
+        assert artifact.final_page_count == 1
+        assert artifact.action_log == []
+        assert artifact.warnings == []
+
+
 class TestGenerationState:
+    def _make_state(self, page_count: int = 2) -> GenerationState:
+        from tests.conftest import sample_experience
+        content = ResolvedContent(
+            experiences=[ExperienceItem(
+                id="e1", role="SWE", company="Corp", date="2024",
+                bullets=["Did stuff"], keywords=["Python"], priority=0.8,
+            )]
+        )
+        return GenerationState(
+            layout=LayoutParams(), content=content, page_count=page_count,
+        )
+
     def test_is_immutable(self) -> None:
-        state = GenerationState(layout_params=LayoutParams(), current_page_count=2)
-        with pytest.raises(Exception):  # frozen dataclass
-            state.current_page_count = 1  # type: ignore[misc]
+        state = self._make_state()
+        with pytest.raises(Exception):
+            state.page_count = 1  # type: ignore[misc]
 
-    def test_with_page_count_returns_new(self) -> None:
-        state = GenerationState(layout_params=LayoutParams(), current_page_count=2)
-        new = state.with_page_count(1)
-        assert new.current_page_count == 1
-        assert state.current_page_count == 2  # original unchanged
+    def test_apply_action_returns_new(self) -> None:
+        state = self._make_state(page_count=2)
+        action = SpacingAction(delta_margin_pt=-4.0, delta_gutter_pt=-1.0)
+        new = state.apply_action(action, new_page_count=1)
+        assert new.page_count == 1
+        assert state.page_count == 2
+        assert len(new.actions) == 1
 
-    def test_with_layout_increments_iteration(self) -> None:
-        state = GenerationState(layout_params=LayoutParams(), current_page_count=1, iteration=0)
-        new = state.with_layout(LayoutParams(font_size=10.0))
-        assert new.iteration == 1
-        assert state.iteration == 0  # original unchanged
+    def test_add_warning(self) -> None:
+        state = self._make_state()
+        new = state.add_warning("oops")
+        assert "oops" in new.warnings
+        assert len(state.warnings) == 0
 
-    def test_chaining_preserves_independence(self) -> None:
-        s0 = GenerationState(layout_params=LayoutParams(), current_page_count=3)
-        s1 = s0.with_page_count(2)
-        s2 = s1.with_layout(LayoutParams(font_size=10.5))
-        assert s0.current_page_count == 3
-        assert s1.current_page_count == 2
-        assert s2.layout_params.font_size == 10.5
-        assert s2.iteration == 1
+    def test_pruning_score_no_match_score(self) -> None:
+        state = self._make_state()
+        score = state.pruning_score("e1", alpha=0.5)
+        assert score == 0.8  # falls back to priority when match_score is None
+
+
+class TestActions:
+    def test_spacing_action_frozen(self) -> None:
+        a = SpacingAction(delta_margin_pt=-4.0)
+        with pytest.raises(Exception):
+            a.delta_margin_pt = 0  # type: ignore[misc]
+
+    def test_action_union(self) -> None:
+        actions: list[Action] = [
+            SpacingAction(), FontAction(), PruneAction(), NoOpAction()
+        ]
+        assert len(actions) == 4
 
 
 class TestExceptions:

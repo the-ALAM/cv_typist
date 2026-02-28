@@ -1,0 +1,39 @@
+"""Immutable action types emitted by the HeuristicLoop.
+
+Dependency rule: stdlib only.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass
+from typing import Literal, Union
+
+
+@dataclass(frozen=True)
+class SpacingAction:
+    kind: Literal["spacing"] = "spacing"
+    delta_margin_pt: float = 0.0
+    delta_gutter_pt: float = 0.0
+
+
+@dataclass(frozen=True)
+class FontAction:
+    kind: Literal["font"] = "font"
+    new_font_size_pt: float = 0.0
+
+
+@dataclass(frozen=True)
+class PruneAction:
+    kind: Literal["prune"] = "prune"
+    pruned_experience_id: str = ""
+    pruning_score: float = 0.0
+
+
+@dataclass(frozen=True)
+class NoOpAction:
+    """Emitted when a step has no further moves available."""
+    kind: Literal["noop"] = "noop"
+    reason: str = ""
+
+
+Action = Union[SpacingAction, FontAction, PruneAction, NoOpAction]

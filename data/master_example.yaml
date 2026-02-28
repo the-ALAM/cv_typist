@@ -33,3 +33,35 @@ experiences:
       - "Introduced Git-flow branching to a team previously using FTP deploys"
     keywords: ["PHP", "WordPress", "Git", "MySQL"]
     priority: 0.30
+
+  - id: "exp-004"
+    role: "Data Engineer"
+    company: 'O"Brien & Partners'
+    date: "2021-01 – 2022-06"
+    bullets:
+      - 'Built ETL pipeline processing 2M+ records/day with a 99.5% SLA'
+      - 'Designed a dashboard using Grafana with #custom queries for metrics'
+      - 'Reduced storage cost by 35% via partitioning strategy on "hot" tables'
+    keywords: ["Python", "Spark", "Airflow", "Grafana", "PostgreSQL"]
+    priority: 0.60
+
+  - id: "exp-005"
+    role: "DevOps Engineer"
+    company: "CloudScale Inc"
+    date: "2020-03 – 2021-06"
+    bullets:
+      - "Automated infrastructure provisioning with Terraform \\ Ansible"
+      - "Managed Kubernetes clusters serving #production workloads at scale"
+      - "Implemented zero-downtime deployment strategy across 12 microservices"
+    keywords: ["Terraform", "Ansible", "Kubernetes", "AWS", "Docker", "CI/CD"]
+    priority: 0.85
+
+  - id: "exp-006"
+    role: "Research Intern"
+    company: "University Lab"
+    date: "2016-06 – 2017-08"
+    bullets:
+      - "Published paper on NLP topic modelling with 23 citations"
+      - 'Trained BERT model achieving F1=0.92 on custom NER dataset'
+    keywords: ["Python", "NLP", "BERT", "scikit-learn", "PyTorch"]
+    priority: 0.20

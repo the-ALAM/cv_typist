@@ -22,7 +22,11 @@ def load_master(path: Path) -> MasterExperience:
     Raises:
         ConfigError: if the file cannot be parsed or fails schema validation.
     """
-    raise NotImplementedError
+    try:
+        data = _read_file(path)
+        return MasterExperience.model_validate(data)
+    except Exception as exc:
+        raise ConfigError(f"Failed to load master experience from {path}: {exc}") from exc
 
 
 def load_config(path: Path) -> TailoredConfig:
@@ -31,7 +35,11 @@ def load_config(path: Path) -> TailoredConfig:
     Raises:
         ConfigError: if the file cannot be parsed or fails schema validation.
     """
-    raise NotImplementedError
+    try:
+        data = _read_file(path)
+        return TailoredConfig.model_validate(data)
+    except Exception as exc:
+        raise ConfigError(f"Failed to load config from {path}: {exc}") from exc
 
 
 def _read_file(path: Path) -> dict:

@@ -1,0 +1,6 @@
+# Tailoring configuration — controls layout constraints and AI behaviour.
+
+max_pages: 1             # Hard page limit enforced by HeuristicLoop
+min_font_size: 9.0       # Floor for Step B (typography reduction)
+allow_rephrasing: false  # Set to true to enable AI bullet rewriting (Phase 3)
+output_format: "pdf"     # "pdf" or "png"

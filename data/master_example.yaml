@@ -1,0 +1,35 @@
+# Master experience list — all roles you have ever held.
+# The SelectionAgent ranks these against a Job Description.
+# Priority (0.0–1.0): HeuristicLoop prunes lowest priority first under page pressure.
+
+experiences:
+  - id: "exp-001"
+    role: "Senior Software Engineer"
+    company: "Acme Corp"
+    date: "2022-01 – 2024-03"
+    bullets:
+      - "Designed and shipped a Python/FastAPI microservice handling 50k req/day"
+      - "Led migration from monolith to event-driven architecture (Kafka)"
+      - "Mentored 3 junior engineers; introduced team-wide ADR practice"
+    keywords: ["Python", "FastAPI", "Kafka", "PostgreSQL", "Docker", "AWS"]
+    priority: 0.95
+
+  - id: "exp-002"
+    role: "Software Engineer"
+    company: "Beta Startup"
+    date: "2019-06 – 2021-12"
+    bullets:
+      - "Built REST APIs in Django serving 200+ enterprise clients"
+      - "Reduced CI pipeline duration by 40% via parallel test sharding"
+    keywords: ["Python", "Django", "REST", "CI/CD", "GitHub Actions"]
+    priority: 0.75
+
+  - id: "exp-003"
+    role: "Junior Developer"
+    company: "Small Agency"
+    date: "2017-09 – 2019-05"
+    bullets:
+      - "Maintained PHP/WordPress sites for 15 client accounts"
+      - "Introduced Git-flow branching to a team previously using FTP deploys"
+    keywords: ["PHP", "WordPress", "Git", "MySQL"]
+    priority: 0.30

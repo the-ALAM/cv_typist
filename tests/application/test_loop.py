@@ -64,8 +64,8 @@ class TestLoopFitsImmediately:
 class TestStepOrdering:
     def test_spacing_actions_precede_font_actions(self, mock_renderer, sample_resolved, tmp_work_dir):
         """All SpacingActions in the log must appear before any FontAction."""
-        # 1 initial + 2 spacing (stall) + 3 binary search (probe+mid+final) = 6
-        side_effects = [(b"%PDF", 2)] * 5 + [(b"%PDF", 1)]
+        # 1 initial + 2 spacing (stall) + 2 binary search (probe+mid) = 5
+        side_effects = [(b"%PDF", 2)] * 4 + [(b"%PDF", 1)]
         mock_renderer.render.side_effect = side_effects
         config = TailoredConfig(max_pages=1, min_font_size_pt=8.5)
         artifact = HeuristicLoop(renderer=mock_renderer).run(sample_resolved, config, tmp_work_dir)
@@ -121,7 +121,8 @@ class TestPruning:
 class TestStallDetection:
     def test_stall_fast_forwards_to_font_step(self, mock_renderer, sample_resolved, tmp_work_dir):
         """If spacing does not improve page count for STALL_DETECTION_WINDOW iterations, a NoOpAction is emitted."""
-        calls = [(b"%PDF", 2)] * 5 + [(b"%PDF", 1)]
+        # 1 initial + 2 spacing (stall) + 2 font (probe+mid) = 5
+        calls = [(b"%PDF", 2)] * 4 + [(b"%PDF", 1)]
         mock_renderer.render.side_effect = calls
         config = TailoredConfig(max_pages=1)
         artifact = HeuristicLoop(renderer=mock_renderer).run(sample_resolved, config, tmp_work_dir)

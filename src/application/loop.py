@@ -18,15 +18,13 @@ from pathlib import Path
 import dataclasses
 
 from ..domain.actions import (
-    Action,
     FontAction,
     NoOpAction,
     PruneAction,
-    PruneBulletAction,
     PruneSectionAction,
     SpacingAction,
 )
-from ..domain.exceptions import LayoutError
+from ..domain.exceptions import LayoutError  # noqa: F401 – reserved for future use
 from ..domain.models import GenerationArtifact, LayoutParams, ResolvedContent, TailoredConfig
 from ..domain.state import GenerationState
 from .ports import RendererPort
@@ -123,23 +121,23 @@ class HeuristicLoop:
                     state.layout.model_copy(update={"font_size_pt": probe}),
                     tmp_dir,
                 )
-                _, mid_pages = self._renderer.render(
+                pdf_bytes, page_count = self._renderer.render(
                     state.content,
                     state.layout.model_copy(update={"font_size_pt": mid}),
                     tmp_dir,
                 )
-                if probe_pages < mid_pages:
+                if probe_pages < page_count:
                     state = state.add_warning(
                         f"Monotone guard violated at font {mid:.2f}pt; "
                         "switching to linear descent"
                     )
                     use_linear = True
-
-            pdf_bytes, page_count = self._renderer.render(
-                state.content,
-                state.layout.model_copy(update={"font_size_pt": mid}),
-                tmp_dir,
-            )
+            else:
+                pdf_bytes, page_count = self._renderer.render(
+                    state.content,
+                    state.layout.model_copy(update={"font_size_pt": mid}),
+                    tmp_dir,
+                )
             font_action = FontAction(new_font_size_pt=mid)
             state = state.apply_action(font_action, page_count)
             if page_count <= config.max_pages:

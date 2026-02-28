@@ -2,6 +2,51 @@
 # The SelectionAgent ranks these against a Job Description.
 # Priority (0.0–1.0): HeuristicLoop prunes lowest priority first under page pressure.
 
+personal:
+  name: "Jordan Lee"
+  location: "Berlin, Germany"
+  email: "jordan.lee@example.com"
+  phone: "+49 30 1234 5678"
+  linkedin: "linkedin.com/in/jordanlee"
+  github: "github.com/jordanlee"
+  portfolio: "jordanlee.dev"
+
+skills:
+  Languages: ["Python", "TypeScript", "Go", "SQL", "Bash"]
+  Frameworks: ["FastAPI", "Django", "React", "Node.js", "gRPC"]
+  Data: ["PostgreSQL", "Redis", "Kafka", "Spark", "Airflow"]
+  Cloud: ["AWS", "Kubernetes", "Terraform", "Docker", "GitHub Actions"]
+  Testing: ["Pytest", "Playwright", "Jest", "Locust"]
+
+projects:
+  - name: "Realtime Observability Platform"
+    date: "2023-04 – 2024-02"
+    tech_used: "Go, Kafka, ClickHouse, Grafana"
+    url: "https://github.com/jordanlee/observability-platform"
+    bullets:
+      - "Built a streaming ingestion service handling 1.2M events/min"
+      - "Designed ClickHouse schemas that reduced query latency by 60%"
+      - "Implemented alerting rules and SLO dashboards for 15 services"
+
+  - name: "CV Tailoring CLI"
+    date: "2022-08 – 2023-01"
+    tech_used: "Python, Jinja2, Typst"
+    url: "https://jordanlee.dev/projects/cv-typist"
+    bullets:
+      - "Created a resume generator with configurable templates and theming"
+      - "Added YAML validation and safe template escaping for user inputs"
+
+education:
+  - institution: "Technical University of Munich"
+    location: "Munich, Germany"
+    degree: "M.Sc. Computer Science"
+    date: "2017 – 2019"
+
+  - institution: "University of Warsaw"
+    location: "Warsaw, Poland"
+    degree: "B.Sc. Computer Science"
+    date: "2013 – 2017"
+
 experiences:
   - id: "exp-001"
     role: "Senior Software Engineer"

@@ -111,8 +111,8 @@ class TestRendererTemplateIsolation:
     def test_render_template_returns_typ_string(self, renderer: Renderer, sample_resolved: ResolvedContent) -> None:
         typ_source = renderer._render_template(sample_resolved, LayoutParams())
         assert isinstance(typ_source, str)
-        assert "#set page(" in typ_source
-        assert "#experience_block(" in typ_source
+        assert "#show: resume.with(" in typ_source
+        assert "#work(" in typ_source
         assert "Software Engineer" in typ_source
 
 

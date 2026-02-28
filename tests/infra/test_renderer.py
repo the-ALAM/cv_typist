@@ -53,5 +53,5 @@ class TestRendererRender:
     def test_render_template_standalone(self, sample_resolved) -> None:
         renderer = Renderer(templates_dir=Path("templates"))
         typ_source = renderer._render_template(sample_resolved, LayoutParams())
-        assert "#set page(" in typ_source
-        assert "56.0pt" in typ_source  # default margin_pt
+        assert "#show: resume.with(" in typ_source
+        assert "10.5pt" in typ_source  # default font_size_pt

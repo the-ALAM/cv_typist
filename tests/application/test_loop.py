@@ -14,13 +14,14 @@ from src.domain.state import GenerationState
 
 
 class TestHeuristicLoopInterface:
-    """Verify the loop accepts the right types and raises NotImplementedError (Phase 1)."""
+    """Verify the loop accepts the right types and returns an artifact."""
 
     def test_instantiates_with_renderer(self, mock_renderer) -> None:
         loop = HeuristicLoop(renderer=mock_renderer)
         assert loop is not None
 
-    def test_run_raises_not_implemented(self, mock_renderer, sample_resolved, default_config, tmp_work_dir) -> None:
+    def test_run_returns_artifact(self, mock_renderer, sample_resolved, default_config, tmp_work_dir) -> None:
         loop = HeuristicLoop(renderer=mock_renderer)
-        with pytest.raises(NotImplementedError):
-            loop.run(sample_resolved, default_config, tmp_work_dir)
+        artifact = loop.run(sample_resolved, default_config, tmp_work_dir)
+        assert artifact.pdf_bytes is not None
+        assert artifact.final_page_count >= 1

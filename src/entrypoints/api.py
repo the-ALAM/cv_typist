@@ -13,6 +13,7 @@ Endpoints (Phase 4):
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import FastAPI, HTTPException
@@ -34,9 +35,11 @@ _PIPELINE: Pipeline | None = None
 def _get_pipeline() -> Pipeline:
     global _PIPELINE
     if _PIPELINE is None:
+        templates_dir = Path(os.environ.get("ACTE_TEMPLATES_DIR", "templates"))
+        template_name = os.environ.get("ACTE_TEMPLATE_NAME", "resume.typ.j2")
         _PIPELINE = Pipeline(
             llm=LiteLLMClient(),
-            renderer=Renderer(templates_dir=Path("templates")),
+            renderer=Renderer(templates_dir=templates_dir, template_name=template_name),
             cache=ContentCache(cache_dir=Path("output/cache")),
         )
     return _PIPELINE

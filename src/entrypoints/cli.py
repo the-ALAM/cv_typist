@@ -28,6 +28,7 @@ def generate(
     config: Path = typer.Option(..., exists=True, help="TailoredConfig YAML/JSON"),
     output: Path = typer.Option(Path("output/resume.pdf"), help="Output PDF path"),
     templates_dir: Path = typer.Option(Path("templates"), help="Templates directory"),
+    template_name: str = typer.Option("resume.typ.j2", help="Jinja2 template filename inside templates directory"),
 ) -> None:
     """Generate a PDF from a master experience list and config.
 
@@ -39,9 +40,15 @@ def generate(
     sorted_experiences = sorted(
         master_data.experiences, key=lambda e: e.priority, reverse=True
     )
-    content = ResolvedContent(experiences=sorted_experiences)
+    content = ResolvedContent(
+        experiences=sorted_experiences,
+        personal=master_data.personal,
+        skills=master_data.skills,
+        projects=master_data.projects,
+        education=master_data.education,
+    )
 
-    renderer = Renderer(templates_dir=templates_dir)
+    renderer = Renderer(templates_dir=templates_dir, template_name=template_name)
     layout = LayoutParams()
     with tempfile.TemporaryDirectory() as tmp:
         pdf_bytes, page_count = renderer.render(content, layout, Path(tmp))

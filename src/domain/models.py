@@ -91,6 +91,44 @@ class ResolvedContent(BaseModel):
     job_description: Optional[str] = None
     metadata: dict[str, str] = Field(default_factory=dict)
 
+    _SECTION_FIELDS = {"experiences", "projects", "education", "skills"}
+
+    def without_section(self, section: str) -> ResolvedContent:
+        """Return a copy with the named section cleared.
+
+        section must be one of: projects, education, skills, experiences.
+        Raises ValueError for unknown section names.
+        """
+        if section not in self._SECTION_FIELDS:
+            raise ValueError(
+                f"Unknown section {section!r}; must be one of {sorted(self._SECTION_FIELDS)}"
+            )
+        empty: list | dict | None = [] if section == "experiences" else None
+        return self.model_copy(update={section: empty})
+
+    def without_bullet(self, experience_id: str, bullet_index: int) -> ResolvedContent:
+        """Return a copy with bullet_index removed from the named experience.
+
+        Raises ValueError if experience_id not found or bullet_index out of range.
+        """
+        new_experiences: list[ExperienceItem] = []
+        found = False
+        for exp in self.experiences:
+            if exp.id == experience_id:
+                found = True
+                if bullet_index < 0 or bullet_index >= len(exp.bullets):
+                    raise ValueError(
+                        f"bullet_index {bullet_index} out of range for experience "
+                        f"{experience_id!r} (has {len(exp.bullets)} bullets)"
+                    )
+                new_bullets = exp.bullets[:bullet_index] + exp.bullets[bullet_index + 1:]
+                new_experiences.append(exp.model_copy(update={"bullets": new_bullets}))
+            else:
+                new_experiences.append(exp)
+        if not found:
+            raise ValueError(f"Experience {experience_id!r} not found")
+        return self.model_copy(update={"experiences": new_experiences})
+
 
 class GenerationArtifact(BaseModel):
     pdf_bytes: bytes

@@ -9,3 +9,13 @@ wheels/
 # Virtual environments
 .venv
 .vscode/settings.json
+
+# Runtime artifacts — generated PDFs, cache, history
+output/cache/
+output/history/
+output/*.pdf
+output/*.png
+
+# Environment secrets
+.env
+

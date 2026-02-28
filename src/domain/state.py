@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, replace
 
-from .actions import Action, FontAction, SpacingAction
+from .actions import Action, FontAction, PruneBulletAction, PruneSectionAction, SpacingAction
 from .models import LayoutParams, ResolvedContent
 
 

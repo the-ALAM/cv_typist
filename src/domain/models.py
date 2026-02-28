@@ -21,8 +21,37 @@ class ExperienceItem(BaseModel):
     match_score: Optional[float] = Field(default=None, ge=0.0, le=1.0)
 
 
+class PersonalInfo(BaseModel):
+    name: str
+    location: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    linkedin: Optional[str] = None
+    github: Optional[str] = None
+    portfolio: Optional[str] = None
+
+
+class ProjectItem(BaseModel):
+    name: str
+    date: str
+    bullets: list[str]
+    tech_used: Optional[str] = None
+    url: Optional[str] = None
+
+
+class EducationItem(BaseModel):
+    institution: str
+    location: str
+    degree: str
+    date: str
+
+
 class MasterExperience(BaseModel):
     experiences: list[ExperienceItem]
+    personal: Optional[PersonalInfo] = None
+    skills: Optional[dict[str, list[str]]] = None
+    projects: Optional[list[ProjectItem]] = None
+    education: Optional[list[EducationItem]] = None
 
     @model_validator(mode="after")
     def unique_ids(self) -> MasterExperience:
@@ -55,6 +84,10 @@ class ResolvedContent(BaseModel):
     """
 
     experiences: list[ExperienceItem]
+    personal: Optional[PersonalInfo] = None
+    skills: Optional[dict[str, list[str]]] = None
+    projects: Optional[list[ProjectItem]] = None
+    education: Optional[list[EducationItem]] = None
     job_description: Optional[str] = None
     metadata: dict[str, str] = Field(default_factory=dict)
 

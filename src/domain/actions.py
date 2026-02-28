@@ -36,4 +36,24 @@ class NoOpAction:
     reason: str = ""
 
 
-Action = Union[SpacingAction, FontAction, PruneAction, NoOpAction]
+@dataclass(frozen=True)
+class PruneSectionAction:
+    """Prune an entire named template section (experiences, projects, education, skills)."""
+    kind: Literal["prune_section"] = "prune_section"
+    section: str = ""
+    pruning_score: float = 0.0
+
+
+@dataclass(frozen=True)
+class PruneBulletAction:
+    """Prune a single bullet from an ExperienceItem."""
+    kind: Literal["prune_bullet"] = "prune_bullet"
+    experience_id: str = ""
+    bullet_index: int = 0
+    reason: str = ""
+
+
+Action = Union[
+    SpacingAction, FontAction, PruneAction, NoOpAction,
+    PruneSectionAction, PruneBulletAction,
+]

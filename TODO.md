@@ -104,3 +104,11 @@ Phase 1 (CLI): Implement the Pydantic models and a basic Jinja2 to Typst pipelin
 Phase 2 (Heuristics): Implement the HeuristicLoop. Use a while loop that checks the PDF page count and updates a LayoutParams object until the PDF length is $\le$ max_pages.
 Phase 3 (AI): Add the SelectionAgent. It should take a string (Job Description) and the master_experience, returning a filtered list of Experience IDs with match_score and optionally rephrased text.
 Phase 4 (API): Wrap the logic in FastAPI with an endpoint /generate that returns a FileResponse or uploads to a storage provider.
+
+# TODO
+
+- [ ] - theres a big misalignment here there should be a config, a master experience list, a job description list and the optional chosen experience items list. the master experience list has all i have done and the job description has the requirements of the job, and the config has the constraints and the flags, and the chosen experience items list is the output of the selection phase which is based on the master experience list.
+
+- [ ] - add to phase 3 an agentic component that reviews the generated template and decide on the best heuristic adjustment to make based on the constraints and the content of the CV, instead of following a fixed order of adjustments. 
+For example, if the CV is just slightly over the page limit, it might choose to rephrase a few bullets instead of reducing font size or margins, which could make the CV look cramped.
+and also make it directly edit the template to remove or rephrase content instead of just outputting a filtered list of experience IDs. This way, the AI can make more nuanced adjustments to the CV content while ensuring it meets the constraints.

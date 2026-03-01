@@ -445,8 +445,8 @@ class HeuristicLoop:
 
     # --- Tunable constants (not user-configurable, internal to the loop) ---
     SPACING_MAX_ITERATIONS = 3
-    SPACING_MARGIN_DELTA_PT = 4.0    # Reduce margin by this per step
-    SPACING_GUTTER_DELTA_PT = 1.0    # Reduce gutter by this per step
+    SPACING_MARGIN_DELTA_PT = -4.0    # Reduce margin by this per step
+    SPACING_GUTTER_DELTA_PT = -1.0    # Reduce gutter by this per step
     FONT_BINARY_SEARCH_MAX_ITER = 8
     STALL_DETECTION_WINDOW = 2       # If page_count hasn't changed in N steps, fast-forward to next step
 
